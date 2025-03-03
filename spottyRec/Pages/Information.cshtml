@@ -1,0 +1,152 @@
+﻿@page
+@model InformationModel
+@using System.Text.Json
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Tracks and Recommendations</title>
+    <style>
+        body {
+            background-color: black;
+            color: white;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .spotify-btn {
+            background-color: #1DB954;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        table {
+            width: 80%;
+            margin-top: 20px;
+            border-collapse: collapse;
+            text-align: center;
+        }
+
+        th, td {
+            padding: 10px;
+            border: 1px solid white;
+        }
+
+        th {
+            background-color: #1DB954;
+            color: black;
+        }
+
+        tr:nth-child(even) {
+            background-color: #222;
+        }
+
+        .spacer {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Your Tracks and Recommendations</h1>
+
+    <!-- Buttons for fetching top tracks, recommendations, and create playlist -->
+    <div class="button-container">
+        <form method="post">
+            <button class="spotify-btn" asp-page-handler="TopTracks">Get Top Tracks</button>
+        </form>
+        <form method="post">
+            <button class="spotify-btn" asp-page-handler="Reccomendation">Get Recommendations</button>
+        </form>
+        @if (Model.ShowCreatePlaylistButton)
+        {
+            <form method="post">
+                <button class="spotify-btn" asp-page-handler="CreatePlaylist">Create Playlist</button>
+            </form>
+        }
+    </div>
+
+    <!-- Display Top Tracks -->
+    @if (Model.ShowTopTracks)
+    {
+        <h2>Your Top Tracks</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Track Title</th>
+                    <th>Artist</th>
+                    <th>Genre</th>
+                    <th>Year</th>
+                    <th>Danceability</th>
+                    <th>Energy</th>
+                    <th>Tempo</th>
+                    <th>Valence</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var track in Model.Tracks)
+                {
+                    <tr>
+                        <td>@track.title</td>
+                        <td>@track.artist</td>
+                        <td>@track.genre</td>
+                        <td>@track.year</td>
+                        <td>@track.danceability</td>
+                        <td>@track.energy</td>
+                        <td>@track.tempo</td>
+                        <td>@track.valence</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    @if (Model.ShowRecommendations)
+    {
+        <h2>Your Track Recommendations</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Track Title</th>
+                    <th>Artist</th>
+                    <th>Recommendation Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var recommendation in Model.Recommendations)
+                {
+                    <tr>
+                        <td>@recommendation.Track</td>
+                        <td>@recommendation.Artist</td>
+                        <td>@recommendation.Score</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+</body>
+</html>
