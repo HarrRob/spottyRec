@@ -1,8 +1,8 @@
 ﻿using System.Text.Json.Serialization;
 
-    public class Recommendation
+    public class RecommendationDetails
     {
-        public Recommendation(string trackID,string track, string artist, float score)
+        public RecommendationDetails(string trackID,string track, string artist, float score)
         {
             TrackID = trackID;
             Track = track;

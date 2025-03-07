@@ -8,13 +8,14 @@ using spottyRec.Services;
 using System.Linq;
 using System.Text.Json; // Needed for JSON serialization
 using spottyRec.Models;
-using spottyRec.Utils;
 
 public class InformationModel : PageModel
 {
     private readonly TrackService _trackService;
     private readonly ReccomendationService _reccomendationService;
-    private readonly PlaylistService _playlistService; // Add PlaylistService here
+    private readonly PlaylistService _playlistService;
+    private readonly ListeningHabitsService _listeningHabitsService;
+    private readonly MergeSortService _mergeSortService;
 
     public InformationModel()
     {
@@ -22,16 +23,22 @@ public class InformationModel : PageModel
         _trackService = new TrackService("https://localhost:7035");
         _reccomendationService = new ReccomendationService("https://localhost:7035");
         _playlistService = new PlaylistService("https://localhost:7035");
+        _listeningHabitsService = new ListeningHabitsService("https://localhost:7035"); 
+        _mergeSortService = new MergeSortService("https://localhost:7035");
     }
 
 
     [BindProperty]
     public List<TrackDetails> Tracks { get; set; } = new List<TrackDetails>();
 
-    public List<Recommendation> Recommendations { get; set; } = new List<Recommendation>();
+    public List<RecommendationDetails> Recommendations { get; set; } = new List<RecommendationDetails>();
+
+    public ListeningHabitsDetails ListeningHabits { get; set; }
 
     public bool ShowTopTracks { get; set; } = false;
     public bool ShowRecommendations { get; set; } = false;
+    public bool ShowListeningHabits { get; set; } = false;
+    
 
     public string Token { get; set; }
 
@@ -50,6 +57,8 @@ public class InformationModel : PageModel
         ShowCreatePlaylistButton = true;  // Show Create Playlist button after fetching top tracks
 
         Token = HttpContext.Session.GetString("token") ?? Request.Query["accessToken"];
+        int limit = 10;
+        int offset = 0;
 
         if (string.IsNullOrEmpty(Token))
         {
@@ -88,6 +97,8 @@ public class InformationModel : PageModel
         ShowCreatePlaylistButton = true;  // Show Create Playlist button after fetching recommendations
 
         Token = HttpContext.Session.GetString("token") ?? Request.Query["accessToken"];
+        int limit = 10;
+        int offset = 0;
 
         if (string.IsNullOrEmpty(Token))
         {
@@ -100,12 +111,12 @@ public class InformationModel : PageModel
 
         try
         {
-            List<Recommendation> allRecommendations = new List<Recommendation>();
+            List<RecommendationDetails> allRecommendations = new List<RecommendationDetails>();
 
             // For each track, fetch recommendations and add them
             foreach (TrackDetails topTrack in Tracks)
             {
-                Recommendation recommendations = await _reccomendationService.GetRecommendationsAsync(
+                RecommendationDetails recommendations = await _reccomendationService.GetRecommendationsAsync(
                     topTrack.trackID,
                     topTrack.genre,
                     topTrack.danceability,
@@ -117,7 +128,9 @@ public class InformationModel : PageModel
                 allRecommendations.Add(recommendations);
             }
 
-            Recommendations = MergeSortUtility.SortByScore(allRecommendations);
+            var sortedRecommendations = await _mergeSortService.SortRecommendationsAsync(allRecommendations);
+            Recommendations = sortedRecommendations;
+
 
             Tracks = Recommendations.Select(rec => new TrackDetails
             {
@@ -177,22 +190,22 @@ public class InformationModel : PageModel
 
         try
         {
-            // Retrieve the user ID from the backend
-            var userId = await _playlistService.GetUserIdAsync(Token);
-            if (string.IsNullOrEmpty(userId))
-            {
-                ModelState.AddModelError(string.Empty, "Failed to retrieve user ID.");
-                return BadRequest();
-            }
-
             // Create playlist name based on the source
             string playlistName = $"{source} Playlist";
 
-            // Call CreatePlaylistAsync (which returns void)
-            await _playlistService.CreatePlaylistAsync(userId, Token, playlistName, Tracks.Select(t => t.trackID).ToList());
+            // Call the updated CreatePlaylistAsync which now returns a playlist ID
+            var playlistId = await _playlistService.CreatePlaylistAsync(
+                token: Token,
+                playlistName: playlistName,
+                trackIds: Tracks.Select(t => t.trackID).ToList()
+            );
 
-            TempData["Message"] = $"{source} playlist created successfully!";
-            return RedirectToPage("Success");
+            if (string.IsNullOrEmpty(playlistId))
+            {
+                ModelState.AddModelError(string.Empty, "Failed to create playlist.");
+                return BadRequest();
+            }
+            return null;
         }
         catch (HttpRequestException httpEx)
         {
@@ -205,6 +218,50 @@ public class InformationModel : PageModel
             return StatusCode(500);
         }
     }
+
+    public async Task<IActionResult> OnPostListeningHabits()
+    {
+        Token = HttpContext.Session.GetString("token") ?? Request.Query["accessToken"];
+
+        if (string.IsNullOrEmpty(Token))
+        {
+            ModelState.AddModelError(string.Empty, "Access token is missing.");
+            return BadRequest();
+        }
+
+        try
+        {
+            ListeningHabits = await _listeningHabitsService.GetListeningHabitsAsync(Token);
+
+            if (ListeningHabits == null)
+            {
+                ModelState.AddModelError(string.Empty, "Could not retrieve listening habits. Returned object is null.");
+            }
+            else
+            {
+                HttpContext.Session.SetString("ListeningHabits", JsonSerializer.Serialize(ListeningHabits));
+                ShowListeningHabits = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log the full exception details
+            Console.WriteLine($"Full Exception in OnPostListeningHabits: {ex}");
+
+            ModelState.AddModelError(string.Empty, $"Detailed Error fetching listening habits: {ex.Message}");
+
+            // If you want to see the full stack trace in the error
+            if (ex.InnerException != null)
+            {
+                ModelState.AddModelError(string.Empty, $"Inner Exception: {ex.InnerException.Message}");
+            }
+
+            return StatusCode(500);
+        }
+
+        return Page();
+    }
+
 
 
 }

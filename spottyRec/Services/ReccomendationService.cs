@@ -18,7 +18,7 @@ namespace spottyRec.Services
         }
 
         // Method to fetch recommendations from the backend API
-        public async Task<Recommendation> GetRecommendationsAsync(
+        public async Task<RecommendationDetails> GetRecommendationsAsync(
             string targetTrackID,
             string targetGenre,
             float targetDanceability,
@@ -49,7 +49,7 @@ namespace spottyRec.Services
                 {
                     // Read and deserialize the JSON response into a list of Recommendation objects
                     var responseContent = await response.Content.ReadAsStringAsync();
-                    var recommendations = JsonSerializer.Deserialize<Recommendation>(responseContent,
+                    var recommendations = JsonSerializer.Deserialize<RecommendationDetails>(responseContent,
     new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
 
